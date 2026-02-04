@@ -14,7 +14,7 @@ This repository implements a "Geo-Generative" pipeline that bridges the gap betw
    - Projects all data to **UTM Zone 17N (EPSG:26917)** to ensure 1 pixel ≈ 1 meter ground accuracy.
    
 2. **Latent Geometry Injection**:
-   - Injects the one-hot encoded spatial mask into the early denoising stages of a Diffusion model (**Nano Banana**).
+   - Injects the one-hot encoded spatial mask into the early denoising stages of a Diffusion model (**Diffusion Model: TBD**).
    - Uses the geometry as a "structural lock," allowing the AI to synthesize texture (forest, wetland, water) without drifting across coordinate-defined boundaries.
 
 3. **Quantitative Validation (AUC-BAS)**:
