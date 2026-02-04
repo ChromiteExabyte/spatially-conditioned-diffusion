@@ -24,15 +24,21 @@ This repository implements a "Geo-Generative" pipeline that bridges the gap betw
 ---
 
 ### 📊 Performance & Accuracy
-We quantify success using the **Area Under the Boundary Adherence Curve (AUC-BAS)**. 
+We quantify success using the **Area Under the Boundary Adherence Curve (AUC-BAS)**, which measures how well generated terrain respects vector boundaries across different tolerance thresholds.
 
-- **Mean AUC-BAS:** `[Insert Mean from batch_summary.json]`
-- **Structural Integrity:** The model maintains sub-semantic fidelity, ensuring that >90% of generated boundaries fall within a 3-meter tolerance of the original shapefile coordinates.
+*Quantitative results will be added as experiments complete.*
 
 ---
+### 🚀 Project Status
 
-### 🚀 Getting Started
+⚠️ **This repository is in active development.** The pipeline is currently being validated on internal datasets.
 
-1. **Install Dependencies:**
-   ```bash
-   pip install -r requirements.txt
+**Planned Components:**
+- [ ] Vector preprocessing scripts
+- [ ] Diffusion model training pipeline  
+- [ ] Inference & validation tools
+- [ ] Example datasets & notebooks
+
+**Current Focus:** Establishing baseline boundary adherence metrics.
+
+Interested in contributing or testing early versions? Open an issue or reach out.
