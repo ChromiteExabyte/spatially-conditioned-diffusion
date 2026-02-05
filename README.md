@@ -26,46 +26,6 @@ We quantify success using the **Area Under the Boundary Adherence Curve (AUC-BAS
 
 *Quantitative results depend on your dataset and are not included in this repo.*
 
----
-### 🚀 Quickstart
-
-Create synthetic data and run the evaluation pipeline:
-```bash
-python make_test_data.py
-python scripts/05_batch_evaluate.py
-python scripts/06_plot_results.py
-```
-
-Outputs are written to:
-- `data/outputs/batch_metrics/` (CSV + JSON summaries)
-- `paper/figures/fig3_boundary_curve.png` (plot)
-
----
-### 🔎 Input Expectations
-
-**Mask rasters**
-- 2D label arrays (height × width). Multi-class integer labels are supported.
-- Float masks in the 0–1 range are treated as binary (threshold at 0.5).
-- Mask boundaries are derived from label transitions (not Canny edges).
-
-**AI-generated images**
-- Either grayscale (2D) or RGB (3D).
-- Canny edges are computed on the image (RGB images are converted to grayscale).
-
-**Batch evaluation pairing**
-- Images are matched to masks by site ID extracted from filenames like `site_01_v2.png` → `site_01.tif`.
-- If you use a different naming pattern, update `SITE_ID_REGEX` in `scripts/05_batch_evaluate.py`.
-
----
-### 🧭 Repository Layout
-
-- `src/metrics.py`: boundary adherence metric implementation.
-- `src/analysis.py`: AUC-BAS curve calculation helper.
-- `scripts/05_batch_evaluate.py`: batch evaluation runner.
-- `scripts/06_plot_results.py`: plotting utility for mean tolerance curves.
-- `make_test_data.py`: synthetic data generator.
-
----
 ### 🚧 Not Yet Implemented
 The following items are **conceptual or planned** and are not yet present in this repo:
 - Vector preprocessing / rasterization workflows.
