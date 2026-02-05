@@ -26,30 +26,6 @@ We quantify success using the **Area Under the Boundary Adherence Curve (AUC-BAS
 
 *Quantitative results depend on your dataset and are not included in this repo.*
 
----
-### 🚀 Quickstart
-
-Create synthetic data and run the evaluation pipeline:
-```bash
-python make_test_data.py
-python scripts/05_batch_evaluate.py
-python scripts/06_plot_results.py
-```
-
-Outputs are written to:
-- `data/outputs/batch_metrics/` (CSV + JSON summaries)
-- `paper/figures/fig3_boundary_curve.png` (plot)
-
----
-### 🧭 Repository Layout
-
-- `src/metrics.py`: boundary adherence metric implementation.
-- `src/analysis.py`: AUC-BAS curve calculation helper.
-- `scripts/05_batch_evaluate.py`: batch evaluation runner.
-- `scripts/06_plot_results.py`: plotting utility for mean tolerance curves.
-- `make_test_data.py`: synthetic data generator.
-
----
 ### 🚧 Not Yet Implemented
 The following items are **conceptual or planned** and are not yet present in this repo:
 - Vector preprocessing / rasterization workflows.
