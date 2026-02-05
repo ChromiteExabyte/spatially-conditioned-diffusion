@@ -1,5 +1,3 @@
-from pathlib import Path
-
 # Spatial Config
 UTM_EPSG = 26917          # UTM Zone 17N (Change if outside Ontario/East NA)
 OUT_W = 1024
