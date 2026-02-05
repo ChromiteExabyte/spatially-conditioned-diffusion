@@ -1,5 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
 from .metrics import calculate_boundary_adherence
 
 def boundary_adherence_curve(mask_gt, image_ai, tolerances):
