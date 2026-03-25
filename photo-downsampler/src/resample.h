@@ -3,16 +3,17 @@
 
 typedef enum {
     ALGO_NEAREST,    /* pixel art / lo-fi */
-    ALGO_BOX,        /* area average, fast */
+    ALGO_BOX,        /* area average — best for large ratios */
     ALGO_BILINEAR,   /* smooth, fast */
-    ALGO_BICUBIC,    /* sharp, good for slight downscale */
+    ALGO_BICUBIC,    /* sharp, good for mild downscale */
     ALGO_LANCZOS,    /* highest quality, default */
 } ResampleAlgo;
 
 /*
- * Convert src to a size×size square image.
+ * Crop (or pad) src to 1:1, then resize to size×size.
  *
- * pad=0  →  center-crop the shorter dimension (no distortion, no borders)
- * pad=1  →  letterbox/pillarbox with black bars
+ * pad=false  center-crop the shorter dimension (no distortion, no bars)
+ * pad=true   letterbox/pillarbox with black bars
  */
-Image *image_to_square(const Image *src, int size, ResampleAlgo algo, int pad);
+[[nodiscard]] Image *image_to_square(const Image *src, int size,
+                                     ResampleAlgo algo, bool pad);

@@ -1,17 +1,15 @@
 /*
- * image.c — load/save using stb_image (public domain, bundled in vendor/).
+ * image.c — load/save via bundled stb_image (public domain).
  *
- * Supports: JPEG, PNG, BMP, TGA, GIF (load); JPEG, PNG (save).
  * All images are normalized to 8-bit RGB on load.
+ * No external system libraries required.
  */
-#define _POSIX_C_SOURCE 200112L
 #include "image.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
 
-/* Pull in stb implementations exactly once */
+/* Pull in stb implementations exactly once in this translation unit. */
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_ONLY_JPEG
 #define STBI_ONLY_PNG
@@ -24,18 +22,21 @@
 #include "../vendor/stb_image_write.h"
 
 /* =========================================================================
-   Image lifecycle
+   Lifecycle
    ========================================================================= */
 
 Image *image_new(int width, int height, int channels)
 {
-    Image *img = calloc(1, sizeof(*img));
-    if (!img) return NULL;
-    img->width    = width;
-    img->height   = height;
-    img->channels = channels;
-    img->data     = malloc((size_t)width * height * channels);
-    if (!img->data) { free(img); return NULL; }
+    auto img = (Image *)calloc(1, sizeof(Image));
+    if (!img) return nullptr;
+
+    *img = (Image){
+        .width    = width,
+        .height   = height,
+        .channels = channels,
+        .data     = malloc((size_t)width * (size_t)height * (size_t)channels),
+    };
+    if (!img->data) { free(img); return nullptr; }
     return img;
 }
 
@@ -46,59 +47,84 @@ void image_free(Image *img)
     free(img);
 }
 
+void image_free_mem(void *ptr) { free(ptr); }
+
 /* =========================================================================
    Load
    ========================================================================= */
 
 Image *image_load(const char *path)
 {
-    int w, h, orig_channels;
-    /* Force 3-channel (RGB) output */
-    uint8_t *data = stbi_load(path, &w, &h, &orig_channels, 3);
+    int w, h, orig;
+    uint8_t *data = stbi_load(path, &w, &h, &orig, 3);
     if (!data) {
-        fprintf(stderr, "Failed to load '%s': %s\n", path, stbi_failure_reason());
-        return NULL;
+        fprintf(stderr, "load '%s': %s\n", path, stbi_failure_reason());
+        return nullptr;
     }
+    auto img = (Image *)calloc(1, sizeof(Image));
+    if (!img) { stbi_image_free(data); return nullptr; }
+    *img = (Image){ .width = w, .height = h, .channels = 3, .data = data };
+    return img;
+}
 
-    Image *img   = calloc(1, sizeof(*img));
-    if (!img) { stbi_image_free(data); return NULL; }
-    img->width    = w;
-    img->height   = h;
-    img->channels = 3;
-    img->data     = data;   /* stb malloc — freed via free() which is compatible */
+Image *image_load_mem(const uint8_t *data, int len)
+{
+    int w, h, orig;
+    uint8_t *pixels = stbi_load_from_memory(data, len, &w, &h, &orig, 3);
+    if (!pixels) {
+        fprintf(stderr, "load_mem: %s\n", stbi_failure_reason());
+        return nullptr;
+    }
+    auto img = (Image *)calloc(1, sizeof(Image));
+    if (!img) { stbi_image_free(pixels); return nullptr; }
+    *img = (Image){ .width = w, .height = h, .channels = 3, .data = pixels };
     return img;
 }
 
 /* =========================================================================
-   Save
+   Save — file
    ========================================================================= */
 
-static const char *ext_of(const char *path)
+/* Case-insensitive ASCII extension match (avoids POSIX strcasecmp). */
+static bool ext_is(const char *path, const char *ext)
 {
     const char *dot = strrchr(path, '.');
-    return dot ? dot + 1 : "";
+    if (!dot) return false;
+    dot++;
+    while (*dot && *ext) {
+        char a = *dot | 0x20u;   /* ASCII toLower */
+        char b = *ext | 0x20u;
+        if (a != b) return false;
+        dot++; ext++;
+    }
+    return !*dot && !*ext;
 }
 
 int image_save(const Image *img, const char *path, int jpeg_quality)
 {
-    const char *ext = ext_of(path);
-    int ok = 0;
-
-    if (strcasecmp(ext, "jpg") == 0 || strcasecmp(ext, "jpeg") == 0) {
-        ok = stbi_write_jpg(path, img->width, img->height,
-                            img->channels, img->data, jpeg_quality);
-    } else if (strcasecmp(ext, "png") == 0) {
-        int stride = img->width * img->channels;
-        ok = stbi_write_png(path, img->width, img->height,
-                            img->channels, img->data, stride);
-    } else {
-        fprintf(stderr, "Unsupported output format: .%s  (use .jpg or .png)\n", ext);
-        return -1;
+    if (ext_is(path, "png")) {
+        auto stride = img->width * img->channels;
+        bool ok = stbi_write_png(path, img->width, img->height,
+                                 img->channels, img->data, stride);
+        return ok ? 0 : -1;
     }
-
-    if (!ok) {
-        fprintf(stderr, "Failed to write '%s'\n", path);
-        return -1;
+    if (ext_is(path, "jpg") || ext_is(path, "jpeg")) {
+        bool ok = stbi_write_jpg(path, img->width, img->height,
+                                 img->channels, img->data, jpeg_quality);
+        return ok ? 0 : -1;
     }
-    return 0;
+    fprintf(stderr, "Unsupported output format (use .png or .jpg)\n");
+    return -1;
+}
+
+/* =========================================================================
+   Save — in-memory PNG  (used by WASM API)
+   ========================================================================= */
+
+uint8_t *image_to_png_mem(const Image *img, int *out_len)
+{
+    auto stride = img->width * img->channels;
+    return stbi_write_png_to_mem(img->data, stride,
+                                 img->width, img->height,
+                                 img->channels, out_len);
 }
