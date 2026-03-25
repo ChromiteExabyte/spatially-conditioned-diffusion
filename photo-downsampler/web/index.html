@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>photodown</title>
+<style>
+/* ── Reset + tokens ───────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #0c0c0c;
+  --surface:  #161616;
+  --border:   #272727;
+  --accent:   #c8ff00;
+  --text:     #d8d8d8;
+  --muted:    #555;
+  --font:     'Courier New', 'Lucida Console', monospace;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  height: 100dvh;
+  display: grid;
+  grid-template-rows: 3rem 1fr;
+  overflow: hidden;
+}
+
+/* ── Header ──────────────────────────────────────────────────── */
+header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.logo {
+  font-size: 1rem;
+  letter-spacing: .12em;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.tagline {
+  font-size: .7rem;
+  color: var(--muted);
+  letter-spacing: .1em;
+}
+
+#status-bar {
+  margin-left: auto;
+  font-size: .7rem;
+  color: var(--muted);
+  letter-spacing: .08em;
+  min-width: 12ch;
+  text-align: right;
+}
+#status-bar.busy { color: var(--accent); }
+
+/* ── Layout ──────────────────────────────────────────────────── */
+main {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  overflow: hidden;
+}
+
+/* ── Controls ────────────────────────────────────────────────── */
+.panel {
+  border-right: 1px solid var(--border);
+  padding: 1.1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.group { display: flex; flex-direction: column; gap: .45rem; }
+
+.label {
+  font-size: .65rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+select, input[type="number"] {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: .8rem;
+  padding: .35rem .5rem;
+  outline: none;
+  transition: border-color .15s;
+}
+select:focus, input[type="number"]:focus { border-color: var(--accent); }
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.slider-row input[type="range"] {
+  flex: 1;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.slider-val {
+  font-size: .75rem;
+  color: var(--muted);
+  min-width: 3ch;
+  text-align: right;
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: .8rem;
+  cursor: pointer;
+}
+.check-row input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 13px; height: 13px;
+  cursor: pointer;
+}
+
+.divider { height: 1px; background: var(--border); }
+
+.btn {
+  padding: .5rem .75rem;
+  border: 1px solid;
+  font-family: var(--font);
+  font-size: .78rem;
+  letter-spacing: .08em;
+  cursor: pointer;
+  width: 100%;
+  transition: background .15s, color .15s;
+  text-align: center;
+}
+.btn-process {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: transparent;
+}
+.btn-process:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.btn-process:disabled { opacity: .3; cursor: default; }
+
+.btn-download {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #000;
+}
+.btn-download:hover { background: #d8ff1a; }
+.btn-download:disabled { opacity: .3; cursor: default; }
+
+/* ── Preview area ────────────────────────────────────────────── */
+.preview {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+/* Drop zone */
+.drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .75rem;
+  width: 100%; height: 100%;
+  border: 2px dashed var(--border);
+  cursor: pointer;
+  transition: border-color .2s;
+}
+.drop-zone.over { border-color: var(--accent); }
+.drop-icon { font-size: 2.5rem; opacity: .25; }
+.drop-text { font-size: .78rem; color: var(--muted); letter-spacing: .12em; }
+.drop-sub  { font-size: .65rem; color: var(--muted); opacity: .6; }
+
+/* Before/after comparison */
+.compare {
+  display: none;
+  position: relative;
+  /* square, max fits in container */
+  width:  min(calc(100dvh - 3rem - 2rem), calc(100% - 2rem));
+  height: min(calc(100dvh - 3rem - 2rem), calc(100% - 2rem));
+  aspect-ratio: 1;
+  user-select: none;
+}
+
+.compare canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+#cv-before { z-index: 1; }
+#cv-after  { z-index: 2; }
+
+.slider-line {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 1px;
+  background: rgba(255,255,255,.7);
+  z-index: 3;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+.slider-handle {
+  position: absolute;
+  top: 50%;
+  width: 32px; height: 32px;
+  background: rgba(10,10,10,.85);
+  border: 1.5px solid rgba(255,255,255,.7);
+  border-radius: 50%;
+  z-index: 4;
+  transform: translate(-50%, -50%);
+  cursor: ew-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .6rem;
+  color: rgba(255,255,255,.7);
+  letter-spacing: -.05em;
+}
+
+.img-info {
+  position: absolute;
+  bottom: .6rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: .65rem;
+  color: var(--muted);
+  letter-spacing: .1em;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 5;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo">◆ photodown</span>
+  <span class="tagline">aesthetic 1:1 downsampler</span>
+  <span id="status-bar">loading wasm…</span>
+</header>
+
+<main>
+  <!-- ── Controls ── -->
+  <aside class="panel">
+
+    <div class="group">
+      <label class="label">Output size</label>
+      <input type="number" id="size" value="512" min="16" max="4096" step="16">
+    </div>
+
+    <div class="group">
+      <label class="label">Algorithm</label>
+      <select id="algo">
+        <option value="4" selected>lanczos   — highest quality</option>
+        <option value="3">bicubic   — sharp</option>
+        <option value="2">bilinear  — smooth</option>
+        <option value="1">box       — area average</option>
+        <option value="0">nearest   — pixel art</option>
+      </select>
+    </div>
+
+    <div class="group">
+      <label class="check-row">
+        <input type="checkbox" id="pad">
+        pad to square (black bars)
+      </label>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="group">
+      <label class="label">Vignette</label>
+      <div class="slider-row">
+        <input type="range" id="vignette" min="0" max="100" value="0"
+               oninput="document.getElementById('vignette-val').textContent=this.value+'%'">
+        <span class="slider-val" id="vignette-val">0%</span>
+      </div>
+    </div>
+
+    <div class="group">
+      <label class="label">Film grain</label>
+      <div class="slider-row">
+        <input type="range" id="grain" min="0" max="100" value="0"
+               oninput="document.getElementById('grain-val').textContent=this.value+'%'">
+        <span class="slider-val" id="grain-val">0%</span>
+      </div>
+    </div>
+
+    <div class="group">
+      <label class="label">Dithering</label>
+      <select id="dither">
+        <option value="0" selected>none</option>
+        <option value="1">ordered  — Bayer 8×8 retro</option>
+        <option value="2">Floyd-Steinberg  — bold</option>
+      </select>
+    </div>
+
+    <div class="divider"></div>
+
+    <button class="btn btn-process" id="btn-process" disabled
+            onclick="runProcess()">process</button>
+
+    <button class="btn btn-download" id="btn-download" disabled
+            onclick="downloadResult()">download .png</button>
+
+  </aside>
+
+  <!-- ── Preview ── -->
+  <section class="preview" id="preview">
+
+    <div class="drop-zone" id="drop-zone"
+         onclick="document.getElementById('file-input').click()"
+         ondragover="onDragOver(event)"
+         ondragleave="onDragLeave(event)"
+         ondrop="onDrop(event)">
+      <div class="drop-icon">⬡</div>
+      <div class="drop-text">DROP PHOTO HERE</div>
+      <div class="drop-sub">or click to browse · JPEG PNG BMP TGA GIF</div>
+    </div>
+
+    <div class="compare" id="compare">
+      <canvas id="cv-before"></canvas>
+      <canvas id="cv-after"></canvas>
+      <div class="slider-line" id="slider-line" style="left:50%"></div>
+      <div class="slider-handle" id="slider-handle" style="left:50%">◁▷</div>
+      <div class="img-info" id="img-info"></div>
+    </div>
+
+  </section>
+</main>
+
+<input type="file" id="file-input" accept="image/*" style="display:none"
+       onchange="onFileSelected(this.files[0])">
+
+<script>
+/* ================================================================
+   State
+   ================================================================ */
+let Module = null;           /* Emscripten module instance  */
+let srcBytes  = null;        /* Uint8Array of the source file */
+let resultPng = null;        /* Uint8Array of last output PNG */
+
+const $ = id => document.getElementById(id);
+
+/* ================================================================
+   WASM bootstrap
+   ================================================================ */
+async function initWasm() {
+  const script = document.createElement('script');
+  script.src = 'photodown.js';
+  document.head.appendChild(script);
+  await new Promise(resolve => script.onload = resolve);
+
+  Module = await PhotoDown();
+  setStatus('ready');
+}
+
+function setStatus(msg, busy = false) {
+  const el = $('status-bar');
+  el.textContent = msg;
+  el.classList.toggle('busy', busy);
+}
+
+/* ================================================================
+   File input
+   ================================================================ */
+function onDragOver(e) { e.preventDefault(); $('drop-zone').classList.add('over'); }
+function onDragLeave()  { $('drop-zone').classList.remove('over'); }
+function onDrop(e) {
+  e.preventDefault();
+  $('drop-zone').classList.remove('over');
+  const file = e.dataTransfer.files[0];
+  if (file) onFileSelected(file);
+}
+
+function onFileSelected(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    srcBytes = new Uint8Array(e.target.result);
+    loadPreviewBefore(srcBytes, file.name);
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function loadPreviewBefore(bytes, name) {
+  const blob = new Blob([bytes]);
+  const url  = URL.createObjectURL(blob);
+  const img  = new Image();
+  img.onload = () => {
+    /* Draw source into before canvas */
+    const cv = $('cv-before');
+    cv.width  = img.naturalWidth;
+    cv.height = img.naturalHeight;
+    cv.getContext('2d').drawImage(img, 0, 0);
+    URL.revokeObjectURL(url);
+
+    /* Clear after canvas */
+    const ca = $('cv-after');
+    ca.width  = img.naturalWidth;
+    ca.height = img.naturalHeight;
+    ca.getContext('2d').clearRect(0, 0, ca.width, ca.height);
+
+    /* Show comparison view */
+    $('drop-zone').style.display = 'none';
+    const cmp = $('compare');
+    cmp.style.display = 'block';
+    setSlider(50);
+
+    setStatus(`${img.naturalWidth}×${img.naturalHeight}  —  ${(bytes.length/1024).toFixed(0)} KB`);
+    $('btn-process').disabled  = !Module;
+    $('btn-download').disabled = true;
+    resultPng = null;
+    $('img-info').textContent = '';
+  };
+  img.src = url;
+}
+
+/* ================================================================
+   Processing
+   ================================================================ */
+async function runProcess() {
+  if (!Module || !srcBytes) return;
+
+  $('btn-process').disabled = true;
+  $('btn-download').disabled = true;
+  setStatus('processing…', true);
+
+  /* yield to let the browser repaint */
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+  const size       = Math.max(16, parseInt($('size').value) || 512);
+  const algo       = parseInt($('algo').value);
+  const pad        = $('pad').checked ? 1 : 0;
+  const vignette   = parseInt($('vignette').value);
+  const grain      = parseInt($('grain').value);
+  const dither     = parseInt($('dither').value);
+
+  /* Copy source bytes into WASM heap */
+  const srcPtr = Module._malloc(srcBytes.length);
+  Module.HEAPU8.set(srcBytes, srcPtr);
+
+  const ok = Module._process_image(
+    srcPtr, srcBytes.length,
+    size, algo, pad, vignette, grain, dither
+  );
+  Module._free(srcPtr);
+
+  if (ok !== 0) {
+    setStatus(`error (code ${ok})`);
+    $('btn-process').disabled = false;
+    return;
+  }
+
+  const outPtr = Module._get_output_ptr();
+  const outLen = Module._get_output_len();
+  resultPng = Module.HEAPU8.slice(outPtr, outPtr + outLen);
+  Module._free_output();
+
+  /* Draw result into after canvas */
+  const blob = new Blob([resultPng], { type: 'image/png' });
+  const url  = URL.createObjectURL(blob);
+  const img  = new Image();
+  img.onload = () => {
+    const ca = $('cv-after');
+    ca.width  = size;
+    ca.height = size;
+    ca.getContext('2d').drawImage(img, 0, 0);
+    URL.revokeObjectURL(url);
+
+    $('img-info').textContent =
+      `${size}×${size}  —  ${(outLen/1024).toFixed(0)} KB png`;
+    setStatus('done');
+    $('btn-process').disabled  = false;
+    $('btn-download').disabled = false;
+  };
+  img.src = url;
+}
+
+/* ================================================================
+   Download
+   ================================================================ */
+function downloadResult() {
+  if (!resultPng) return;
+  const blob = new Blob([resultPng], { type: 'image/png' });
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = `photodown_${$('size').value}.png`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ================================================================
+   Before/After slider
+   ================================================================ */
+function setSlider(pct) {
+  $('slider-line').style.left   = pct + '%';
+  $('slider-handle').style.left = pct + '%';
+  /* Clip the "after" canvas to the right portion */
+  $('cv-after').style.clipPath  = `inset(0 0 0 ${pct}%)`;
+}
+
+(function setupSlider() {
+  let dragging = false;
+  const handle = $('slider-handle');
+  const cmp    = $('compare');
+
+  function getX(e) {
+    const rect = cmp.getBoundingClientRect();
+    const cx = (e.touches ? e.touches[0].clientX : e.clientX);
+    return Math.max(0, Math.min(100, (cx - rect.left) / rect.width * 100));
+  }
+
+  handle.addEventListener('mousedown',  () => { dragging = true; });
+  handle.addEventListener('touchstart', () => { dragging = true; }, { passive: true });
+  window.addEventListener('mousemove',  e => { if (dragging) setSlider(getX(e)); });
+  window.addEventListener('touchmove',  e => { if (dragging) setSlider(getX(e)); }, { passive: true });
+  window.addEventListener('mouseup',    () => { dragging = false; });
+  window.addEventListener('touchend',   () => { dragging = false; });
+})();
+
+/* ================================================================
+   Boot
+   ================================================================ */
+window.addEventListener('DOMContentLoaded', initWasm);
+</script>
+</body>
+</html>
