@@ -1,7 +1,12 @@
 import numpy as np
+from numpy.typing import NDArray
 from .metrics import calculate_boundary_adherence
 
-def boundary_adherence_curve(mask_gt, image_ai, tolerances):
+def boundary_adherence_curve(
+    mask_gt: NDArray,
+    image_ai: NDArray,
+    tolerances: list[int],
+) -> tuple[list[int], list[float], float]:
     tolerances = list(tolerances)
     f1_scores = []
 
